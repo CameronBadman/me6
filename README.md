@@ -23,7 +23,10 @@ Core runtime modules:
 - `Me6.Budget` caps retries, turns, and child-pair delegation.
 - `Me6.ActionRunner` is the behaviour for the execution backend.
 - `Me6.ActionContext` gives runners access to memory and tools.
-- `Me6.Tool` defines synchronous tool execution.
+- `Me6.Tools` is the native tool invocation entrypoint.
+- `Me6.Tools.Registry` stores named tool modules.
+- `Me6.Tools.Invocation` and `Me6.Tools.Result` provide structured tool calls.
+- `Me6.Tools.Tool` defines the tool behaviour.
 - `Me6.Memory` defines the memory backend contract.
 - `Me6.Memory.ETS` is the default in-memory backend.
 

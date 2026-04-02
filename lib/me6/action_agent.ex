@@ -6,6 +6,7 @@ defmodule Me6.ActionAgent do
   use GenServer
 
   alias Me6.ActionContext
+  alias Me6.Tools
 
   defstruct [:pair_name, :runner, :runner_state, :memory, :tools]
 
@@ -33,7 +34,7 @@ defmodule Me6.ActionAgent do
        runner: runner,
        runner_state: runner_state,
        memory: memory,
-       tools: Map.new(tools)
+       tools: Tools.new(tools)
      }}
   end
 

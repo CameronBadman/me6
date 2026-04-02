@@ -3,14 +3,16 @@ defmodule Me6.ActionContext do
   Runtime services exposed to an action runner during a turn.
   """
 
-  alias Me6.Tool
+  alias Me6.Tools
+  alias Me6.Tools.Registry
+  alias Me6.Tools.Result
 
   defstruct [:pair_name, :memory, :tools, :delegation_budget]
 
   @type t :: %__MODULE__{
           pair_name: atom() | nil,
           memory: module(),
-          tools: %{optional(atom()) => module()},
+          tools: Registry.t(),
           delegation_budget: non_neg_integer()
         }
 
@@ -24,12 +26,9 @@ defmodule Me6.ActionContext do
     memory.get(scope(pair_name), key, default)
   end
 
-  @spec run_tool(t(), atom(), term()) :: {:ok, term()} | {:error, term()}
-  def run_tool(%__MODULE__{tools: tools} = context, tool_name, input) do
-    case Map.fetch(tools, tool_name) do
-      {:ok, tool_module} -> Tool.run(tool_module, input, context)
-      :error -> {:error, {:unknown_tool, tool_name}}
-    end
+  @spec run_tool(t(), atom(), term(), keyword()) :: Result.t()
+  def run_tool(%__MODULE__{tools: tools} = context, tool_name, input, opts \\ []) do
+    Tools.invoke(tools, tool_name, input, context, opts)
   end
 
   defp scope(nil), do: :anonymous
