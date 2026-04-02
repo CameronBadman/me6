@@ -57,6 +57,86 @@ defmodule Me6 do
   end
 
   @doc """
+  Stores a value in the mailbox directory tree at the given path.
+  """
+  @spec directory_put([term()], term()) :: :ok
+  def directory_put(path, value) do
+    Mailboxes.put_path(path, value)
+  end
+
+  @doc """
+  Reads a value from the mailbox directory tree.
+  """
+  @spec directory_get([term()], term()) :: term()
+  def directory_get(path, default \\ nil) do
+    Mailboxes.get_path(path, default)
+  end
+
+  @doc """
+  Deletes a value from the mailbox directory tree.
+  """
+  @spec directory_delete([term()]) :: :ok
+  def directory_delete(path) do
+    Mailboxes.delete_path(path)
+  end
+
+  @doc """
+  Lists child keys under a mailbox directory path.
+  """
+  @spec directory_list([term()]) :: [term()]
+  def directory_list(path \\ []) do
+    Mailboxes.list_path(path)
+  end
+
+  @doc """
+  Returns a subtree from the mailbox directory.
+  """
+  @spec directory_tree([term()]) :: term()
+  def directory_tree(path \\ []) do
+    Mailboxes.tree(path)
+  end
+
+  @doc """
+  Stores a value in the global mailbox directory namespace.
+  """
+  @spec global_put([term()], term()) :: :ok
+  def global_put(path, value) do
+    Mailboxes.global_put(path, value)
+  end
+
+  @doc """
+  Reads a value from the global mailbox directory namespace.
+  """
+  @spec global_get([term()], term()) :: term()
+  def global_get(path, default \\ nil) do
+    Mailboxes.global_get(path, default)
+  end
+
+  @doc """
+  Deletes a value from the global mailbox directory namespace.
+  """
+  @spec global_delete([term()]) :: :ok
+  def global_delete(path) do
+    Mailboxes.global_delete(path)
+  end
+
+  @doc """
+  Lists child keys under the global mailbox directory namespace.
+  """
+  @spec global_list([term()]) :: [term()]
+  def global_list(path \\ []) do
+    Mailboxes.global_list(path)
+  end
+
+  @doc """
+  Returns a subtree from the global mailbox directory namespace.
+  """
+  @spec global_tree([term()]) :: term()
+  def global_tree(path \\ []) do
+    Mailboxes.global_tree(path)
+  end
+
+  @doc """
   Returns the pid for a registered pair component.
   """
   @spec whereis(atom(), :eval | :action) :: pid() | nil

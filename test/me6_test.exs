@@ -117,6 +117,58 @@ defmodule Me6Test do
     assert "Need a written migration note" in result.output.required_evidence
   end
 
+  test "mailbox directory stores nested values and supports exploration" do
+    pid = self()
+
+    assert :ok = Me6.directory_put([:agents, :planner, :children, :worker_1, :pid], pid)
+    assert :ok = Me6.directory_put([:agents, :planner, :children, :worker_1, :status], "running")
+    assert :ok = Me6.directory_put([:agents, :planner, :children, :worker_2, :status], "idle")
+
+    assert Me6.directory_get([:agents, :planner, :children, :worker_1, :pid]) == pid
+    assert Me6.directory_get([:agents, :planner, :children, :worker_1, :status]) == "running"
+    assert Me6.directory_list([:agents, :planner, :children]) == [:worker_1, :worker_2]
+
+    assert %{
+             worker_1: %{pid: ^pid, status: "running"},
+             worker_2: %{status: "idle"}
+           } = Me6.directory_tree([:agents, :planner, :children])
+
+    assert :ok = Me6.directory_delete([:agents, :planner, :children, :worker_2])
+    assert Me6.directory_list([:agents, :planner, :children]) == [:worker_1]
+  end
+
+  test "global directory stores shared named entries" do
+    pid = self()
+
+    assert :ok = Me6.global_put([:workers, :indexer, :pid], pid)
+    assert :ok = Me6.global_put([:workers, :indexer, :role], "search")
+
+    assert Me6.global_get([:workers, :indexer, :pid]) == pid
+    assert Me6.global_list([:workers]) == [:indexer]
+    assert %{indexer: %{pid: ^pid, role: "search"}} = Me6.global_tree([:workers])
+
+    assert :ok = Me6.global_delete([:workers, :indexer, :role])
+    assert Me6.global_get([:workers, :indexer, :role], :missing) == :missing
+  end
+
+  test "mailbox registration exposes owner pids in the directory tree" do
+    name = unique_name()
+
+    assert {:ok, _pid} = Me6.start_pair(name: name, runner: Me6.Runners.DemoRunner)
+
+    eval_pid = Me6.whereis(name, :eval)
+    action_pid = Me6.whereis(name, :action)
+
+    assert %{owner: ^eval_pid} = Me6.directory_get([:mailboxes, :eval, name])
+    assert %{owner: ^action_pid} = Me6.directory_get([:mailboxes, :action, name])
+    assert Me6.directory_get([:pids, eval_pid]) == {:eval, name}
+    assert Me6.directory_get([:pids, action_pid]) == {:action, name}
+    assert %{owner: ^eval_pid} = Me6.global_get([:mailboxes, :eval, name])
+    assert %{owner: ^action_pid} = Me6.global_get([:mailboxes, :action, name])
+    assert Me6.global_get([:pids, eval_pid]) == {:eval, name}
+    assert Me6.global_get([:pids, action_pid]) == {:action, name}
+  end
+
   test "fails cleanly when the eval budget is exhausted" do
     name = unique_name()
 

@@ -73,6 +73,8 @@ Messages are stored in a central mailbox registry and can be delivered either th
 - `:intent` rewrites the current intent
 - other message kinds become correction notes
 
+The mailbox registry also exposes a recursive directory tree for named discovery. Agents can store nested values, including pids, and explore them by path. The framework reserves a shared `:global` root for globally visible entries such as registered mailbox owners.
+
 ## Example
 
 Run the tests:
