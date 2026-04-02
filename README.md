@@ -27,6 +27,9 @@ Core runtime modules:
 - `Me6.Tools.Registry` stores named tool modules.
 - `Me6.Tools.Invocation` and `Me6.Tools.Result` provide structured tool calls.
 - `Me6.Tools.Tool` defines the tool behaviour.
+- `Me6.Mailboxes` provides registry-backed mailboxes for agent communication.
+- `Me6.Mailboxes.Message` is the structured mailbox envelope.
+- `Me6.Tools.Communicate` lets agents send mailbox messages through the native tool layer.
 - `Me6.Memory` defines the memory backend contract.
 - `Me6.Memory.ETS` is the default in-memory backend.
 
@@ -53,6 +56,22 @@ This keeps the responsibilities clean:
 - eval is the control plane
 - action is the execution plane
 - delegation budget originates from eval, not action
+- mailbox messages can modify later eval turns without replacing the pair processes
+
+## Communication
+
+Each eval/action side has a mailbox identity:
+
+- `{:eval, pair_name}`
+- `{:action, pair_name}`
+
+Messages are stored in a central mailbox registry and can be delivered either through the public API or the native communication tool. The eval side drains its mailbox between turns and folds messages into the active task loop:
+
+- `:constraint` appends a new constraint
+- `:success_criterion` appends a new success criterion
+- `:required_evidence` appends required evidence
+- `:intent` rewrites the current intent
+- other message kinds become correction notes
 
 ## Example
 

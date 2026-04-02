@@ -62,6 +62,61 @@ defmodule Me6Test do
              Me6.ActionContext.run_tool(context, :missing, "hello")
   end
 
+  test "communicate tool delivers mailbox messages" do
+    registry =
+      %{}
+      |> Registry.new()
+      |> Registry.register(:communicate, Me6.Tools.Communicate)
+
+    context = %Me6.ActionContext{
+      pair_name: :sender_pair,
+      memory: Me6.Memory.ETS,
+      tools: registry,
+      delegation_budget: 0
+    }
+
+    assert %ToolResult{status: :ok, output: %{delivered: true, to: {:eval, :receiver_pair}}} =
+             Me6.ActionContext.run_tool(context, :communicate, %{
+               to: {:eval, :receiver_pair},
+               body: "Tighten the acceptance criteria",
+               kind: :constraint
+             })
+
+    assert [
+             %Me6.Mailboxes.Message{
+               from: {:action, :sender_pair},
+               to: {:eval, :receiver_pair},
+               kind: :constraint,
+               body: "Tighten the acceptance criteria"
+             }
+           ] = Me6.mailbox({:eval, :receiver_pair})
+  end
+
+  test "eval customizes later loop turns from mailbox messages" do
+    name = unique_name()
+
+    assert {:ok, _pid} = Me6.start_pair(name: name, runner: Me6.Runners.MailAwareRunner)
+
+    sender =
+      Task.async(fn ->
+        Process.sleep(10)
+
+        Me6.send_message(
+          {:action, :external_parent},
+          {:eval, name},
+          "Need a written migration note",
+          kind: :required_evidence
+        )
+      end)
+
+    result = Me6.run(name, "finish the task", success_criteria: ["Ship the task"])
+    Task.await(sender)
+
+    assert result.status == :complete
+    assert result.attempts == 2
+    assert "Need a written migration note" in result.output.required_evidence
+  end
+
   test "fails cleanly when the eval budget is exhausted" do
     name = unique_name()
 

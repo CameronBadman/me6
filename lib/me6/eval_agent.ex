@@ -8,17 +8,20 @@ defmodule Me6.EvalAgent do
   alias Me6.ActionAgent
   alias Me6.Budget
   alias Me6.EvalBrief
+  alias Me6.Mailboxes
+  alias Me6.Mailboxes.Message
   alias Me6.RunResult
   alias Me6.TaskContract
 
-  defstruct [:pair_name, :action_name, :budget, current_task: nil]
+  defstruct [:pair_name, :action_name, :budget, current_task: nil, pending_messages: []]
 
   @type task_state :: %{
           contract: TaskContract.t(),
           attempt: non_neg_integer(),
           corrections: [String.t()],
           history: [RunResult.t()],
-          status: atom()
+          status: atom(),
+          messages: [Message.t()]
         }
 
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -38,11 +41,15 @@ defmodule Me6.EvalAgent do
 
   @impl true
   def init(opts) do
+    name = Keyword.fetch!(opts, :name)
+    :ok = Mailboxes.register({:eval, name}, self())
+
     {:ok,
      %__MODULE__{
        pair_name: Keyword.get(opts, :pair_name),
        action_name: Keyword.fetch!(opts, :action_name),
-       budget: Budget.new(Keyword.get(opts, :budget, []))
+       budget: Budget.new(Keyword.get(opts, :budget, [])),
+       pending_messages: []
      }}
   end
 
@@ -53,10 +60,15 @@ defmodule Me6.EvalAgent do
       attempt: 0,
       corrections: [],
       history: [],
-      status: :running
+      status: :running,
+      messages: []
     }
 
-    {reply, next_state} = execute_loop(task, state)
+    {reply, next_state} =
+      state
+      |> apply_pending_messages(task)
+      |> execute_loop()
+
     {:reply, reply, next_state}
   end
 
@@ -72,16 +84,24 @@ defmodule Me6.EvalAgent do
             status: task.status,
             attempt: task.attempt,
             intent: task.contract.intent,
-            corrections: Enum.reverse(task.corrections)
+            corrections: Enum.reverse(task.corrections),
+            unread_messages: Mailboxes.unread_count({:eval, state.pair_name}),
+            applied_messages: Enum.map(task.messages, &summarize_message/1)
           }
       end
 
     {:reply, summary, state}
   end
 
+  @impl true
+  def handle_cast({:mailbox_message, %Message{}}, state) do
+    {:noreply, state}
+  end
+
   def via(name), do: via_tuple(name)
 
-  defp execute_loop(task, state) do
+  defp execute_loop({task, state}) do
+    {task, state} = sync_mailbox(task, state)
     state = %{state | current_task: task}
 
     cond do
@@ -121,7 +141,7 @@ defmodule Me6.EvalAgent do
               |> append_result(next_attempt, result)
               |> Map.update!(:corrections, &[issue | &1])
 
-            execute_loop(task, state)
+            execute_loop({task, state})
 
           {:failed, reason} ->
             task =
@@ -138,6 +158,55 @@ defmodule Me6.EvalAgent do
     task
     |> Map.put(:attempt, attempt)
     |> Map.update!(:history, &[result | &1])
+  end
+
+  defp apply_pending_messages(state, task) do
+    {apply_messages(task, Enum.reverse(state.pending_messages)), %{state | pending_messages: []}}
+  end
+
+  defp sync_mailbox(task, state) do
+    mailbox_messages = Mailboxes.drain({:eval, state.pair_name})
+
+    apply_pending_messages(
+      %{state | pending_messages: mailbox_messages ++ state.pending_messages},
+      task
+    )
+  end
+
+  defp apply_messages(task, []), do: task
+
+  defp apply_messages(task, messages) do
+    Enum.reduce(messages, task, &apply_message/2)
+  end
+
+  defp apply_message(%Message{} = message, task) do
+    task
+    |> Map.update!(:messages, &[message | &1])
+    |> customize_from_message(message)
+  end
+
+  defp customize_from_message(task, %Message{kind: :constraint, body: body}) do
+    update_in(task.contract.constraints, &append_unique(&1, body))
+  end
+
+  defp customize_from_message(task, %Message{kind: :success_criterion, body: body}) do
+    update_in(task.contract.success_criteria, &append_unique(&1, body))
+  end
+
+  defp customize_from_message(task, %Message{kind: :required_evidence, body: body}) do
+    update_in(task.contract.required_evidence, &append_unique(&1, body))
+  end
+
+  defp customize_from_message(task, %Message{kind: :intent, body: body}) when is_binary(body) do
+    put_in(task.contract.intent, body)
+  end
+
+  defp customize_from_message(task, %Message{body: body}) do
+    Map.update!(task, :corrections, &[to_string(body) | &1])
+  end
+
+  defp append_unique(list, value) do
+    if value in list, do: list, else: list ++ [value]
   end
 
   defp assess(%RunResult{
@@ -185,6 +254,10 @@ defmodule Me6.EvalAgent do
   end
 
   defp remaining_child_budget(state), do: state.budget.max_child_pairs
+
+  defp summarize_message(%Message{from: from, kind: kind, body: body}) do
+    %{from: from, kind: kind, body: body}
+  end
 
   defp via_tuple(name), do: {:via, Registry, {Me6.AgentRegistry, {:eval, name}}}
 end

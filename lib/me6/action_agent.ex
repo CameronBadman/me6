@@ -6,9 +6,10 @@ defmodule Me6.ActionAgent do
   use GenServer
 
   alias Me6.ActionContext
+  alias Me6.Mailboxes.Message
   alias Me6.Tools
 
-  defstruct [:pair_name, :runner, :runner_state, :memory, :tools]
+  defstruct [:pair_name, :runner, :runner_state, :memory, :tools, pending_messages: []]
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -22,11 +23,13 @@ defmodule Me6.ActionAgent do
 
   @impl true
   def init(opts) do
+    name = Keyword.fetch!(opts, :name)
     runner = Keyword.fetch!(opts, :runner)
     memory = Keyword.get(opts, :memory, Me6.Memory.ETS)
     tools = Keyword.get(opts, :tools, %{})
     runner_opts = Keyword.get(opts, :runner_opts, [])
     {:ok, runner_state} = runner.init(runner_opts)
+    :ok = Me6.Mailboxes.register({:action, name}, self())
 
     {:ok,
      %__MODULE__{
@@ -34,7 +37,8 @@ defmodule Me6.ActionAgent do
        runner: runner,
        runner_state: runner_state,
        memory: memory,
-       tools: Tools.new(tools)
+       tools: Tools.new(tools),
+       pending_messages: []
      }}
   end
 
@@ -49,6 +53,11 @@ defmodule Me6.ActionAgent do
 
     {:ok, result, runner_state} = state.runner.run_turn(brief, context, state.runner_state)
     {:reply, result, %{state | runner_state: runner_state}}
+  end
+
+  @impl true
+  def handle_cast({:mailbox_message, %Message{}}, state) do
+    {:noreply, state}
   end
 
   def via(name), do: via_tuple(name)

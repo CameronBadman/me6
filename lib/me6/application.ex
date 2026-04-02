@@ -8,6 +8,7 @@ defmodule Me6.Application do
     children = [
       {Registry, keys: :unique, name: Me6.AgentRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: Me6.PairSupervisor},
+      {Me6.Mailboxes.Registry, []},
       {Me6.Memory.ETS, []}
     ]
 

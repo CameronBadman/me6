@@ -4,6 +4,7 @@ defmodule Me6 do
   """
 
   alias Me6.EvalAgent
+  alias Me6.Mailboxes
   alias Me6.Pair
 
   @type pair_ref :: pid() | atom()
@@ -30,6 +31,29 @@ defmodule Me6 do
   @spec status(pair_ref()) :: map()
   def status(pair) do
     EvalAgent.status(eval_via(pair))
+  end
+
+  @doc """
+  Sends a mailbox message to an eval or action component.
+  """
+  @spec send_message({:eval | :action, atom()}, {:eval | :action, atom()}, term(), keyword()) ::
+          :ok
+  def send_message(from, to, body, opts \\ []) do
+    Mailboxes.deliver(
+      from: from,
+      to: to,
+      body: body,
+      kind: Keyword.get(opts, :kind, :note),
+      metadata: Keyword.get(opts, :metadata, %{})
+    )
+  end
+
+  @doc """
+  Returns unread mailbox messages for an eval or action component.
+  """
+  @spec mailbox({:eval | :action, atom()}) :: [Me6.Mailboxes.Message.t()]
+  def mailbox(mailbox) do
+    Mailboxes.peek(mailbox)
   end
 
   @doc """
