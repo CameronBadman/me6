@@ -169,6 +169,47 @@ defmodule Me6Test do
     assert Me6.global_get([:pids, action_pid]) == {:action, name}
   end
 
+  test "pair manager is registered globally and can spawn child pairs" do
+    parent = unique_name()
+    child = unique_name()
+
+    assert {:ok, _pid} =
+             Me6.start_pair(
+               name: parent,
+               runner: Me6.Runners.DemoRunner,
+               policy: Me6.Policy.new(spawn_child_pair: true)
+             )
+
+    assert is_pid(Me6.global_get([:system, :pair_manager, :pid]))
+
+    assert {:ok, _pid} =
+             Me6.spawn_child_pair(parent,
+               name: child,
+               runner: Me6.Runners.DemoRunner
+             )
+
+    assert is_pid(Me6.global_get([:pairs, child, :pid]))
+    assert Me6.global_get([:pairs, child, :parent]) == parent
+    assert %{pid: _pid, name: ^child} = Me6.global_get([:pairs, parent, :children, child])
+  end
+
+  test "policy can deny child pair spawning" do
+    parent = unique_name()
+
+    assert {:ok, _pid} =
+             Me6.start_pair(
+               name: parent,
+               runner: Me6.Runners.DemoRunner,
+               policy: Me6.Policy.new(spawn_child_pair: false)
+             )
+
+    assert {:error, {:permission_denied, :spawn_child_pair, :pair_manager}} =
+             Me6.spawn_child_pair(parent,
+               name: unique_name(),
+               runner: Me6.Runners.DemoRunner
+             )
+  end
+
   test "policy denies tools that are not allowed" do
     restricted_context = %Me6.ActionContext{
       pair_name: :restricted_pair,

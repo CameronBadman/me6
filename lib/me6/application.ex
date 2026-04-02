@@ -10,6 +10,7 @@ defmodule Me6.Application do
       {DynamicSupervisor, strategy: :one_for_one, name: Me6.PairSupervisor},
       {Me6.Policy.Registry, []},
       {Me6.Mailboxes.Registry, []},
+      {Me6.PairManager, []},
       {Me6.Memory.ETS, []}
     ]
 

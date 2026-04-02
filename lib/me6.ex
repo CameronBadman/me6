@@ -5,7 +5,6 @@ defmodule Me6 do
 
   alias Me6.EvalAgent
   alias Me6.Mailboxes
-  alias Me6.Pair
 
   @type pair_ref :: pid() | atom()
 
@@ -14,7 +13,16 @@ defmodule Me6 do
   """
   @spec start_pair(keyword()) :: DynamicSupervisor.on_start_child()
   def start_pair(opts) do
-    DynamicSupervisor.start_child(Me6.PairSupervisor, {Pair, opts})
+    Me6.PairManager.start_pair(opts)
+  end
+
+  @doc """
+  Spawns a child pair on behalf of a parent pair through the pair manager.
+  """
+  @spec spawn_child_pair(atom(), keyword()) ::
+          DynamicSupervisor.on_start_child() | {:error, term()}
+  def spawn_child_pair(parent_pair, opts) do
+    Me6.PairManager.spawn_child_pair(parent_pair, opts)
   end
 
   @doc """

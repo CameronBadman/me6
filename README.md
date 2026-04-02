@@ -32,6 +32,7 @@ Core runtime modules:
 - `Me6.Tools.Communicate` lets agents send mailbox messages through the native tool layer.
 - `Me6.Policy` defines pair capabilities for tools, mailboxes, and directory paths.
 - `Me6.Policy.Registry` stores per-pair policies.
+- `Me6.PairManager` creates top-level and child pairs and records lineage.
 - `Me6.Memory` defines the memory backend contract.
 - `Me6.Memory.ETS` is the default in-memory backend.
 
@@ -94,6 +95,20 @@ The current model is capability-based and path-prefix based. If no policy is pro
 - allowed mailbox readers
 - readable and writable directory prefixes
 - readable and writable `:global` prefixes
+- whether the pair may spawn child pairs
+
+## Child Pairs
+
+Pairs are now created through `Me6.PairManager`. The manager pid is published under:
+
+- `[:global, :system, :pair_manager, :pid]`
+
+Child pairs can be spawned on behalf of a parent pair with `Me6.spawn_child_pair/2`. The manager:
+
+- checks the parent pair policy for spawn permission
+- starts the new pair under the pair supervisor
+- records parent/child lineage under `[:global, :pairs, ...]`
+- keeps child pairs discoverable in the global namespace
 
 ## Example
 

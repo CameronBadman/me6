@@ -11,7 +11,8 @@ defmodule Me6.Policy do
             directory_read: :all,
             directory_write: :all,
             global_read: :all,
-            global_write: :all
+            global_write: :all,
+            spawn_child_pair: true
 
   @type path :: [term()]
   @type mailbox_ref :: {:eval | :action, atom()}
@@ -24,7 +25,8 @@ defmodule Me6.Policy do
           directory_read: prefix_list(),
           directory_write: prefix_list(),
           global_read: prefix_list(),
-          global_write: prefix_list()
+          global_write: prefix_list(),
+          spawn_child_pair: boolean()
         }
 
   @spec allow_all() :: t()
@@ -41,7 +43,8 @@ defmodule Me6.Policy do
       directory_read: normalize_prefixes(Keyword.get(opts, :directory_read, :all)),
       directory_write: normalize_prefixes(Keyword.get(opts, :directory_write, :all)),
       global_read: normalize_prefixes(Keyword.get(opts, :global_read, :all)),
-      global_write: normalize_prefixes(Keyword.get(opts, :global_write, :all))
+      global_write: normalize_prefixes(Keyword.get(opts, :global_write, :all)),
+      spawn_child_pair: Keyword.get(opts, :spawn_child_pair, true)
     }
   end
 
@@ -54,6 +57,7 @@ defmodule Me6.Policy do
           | {:directory_write, path()}
           | {:global_read, path()}
           | {:global_write, path()}
+          | :spawn_child_pair
         ) :: Decision.t()
   def allow?(%__MODULE__{} = policy, {:tool, tool_name}) do
     decide(tool_allowed?(policy.tools, tool_name), :tool, tool_name)
@@ -81,6 +85,10 @@ defmodule Me6.Policy do
 
   def allow?(%__MODULE__{} = policy, {:global_write, path}) do
     decide(path_allowed?(policy.global_write, path), :global_write, path)
+  end
+
+  def allow?(%__MODULE__{} = policy, :spawn_child_pair) do
+    decide(policy.spawn_child_pair, :spawn_child_pair, :pair_manager)
   end
 
   defp decide(true, capability, target), do: Decision.allow(capability, target)
