@@ -169,6 +169,66 @@ defmodule Me6Test do
     assert Me6.global_get([:pids, action_pid]) == {:action, name}
   end
 
+  test "policy denies tools that are not allowed" do
+    restricted_context = %Me6.ActionContext{
+      pair_name: :restricted_pair,
+      memory: Me6.Memory.ETS,
+      tools: Registry.new(%{upcase: Me6.Tools.Upcase}),
+      delegation_budget: 0,
+      policy: Me6.Policy.new(tools: [])
+    }
+
+    assert %ToolResult{
+             status: :error,
+             error: {:permission_denied, :tool, :upcase}
+           } = Me6.ActionContext.run_tool(restricted_context, :upcase, "hello")
+  end
+
+  test "pair policy denies mailbox and directory access outside allowed paths" do
+    name = unique_name()
+
+    assert {:ok, _pid} =
+             Me6.start_pair(
+               name: name,
+               runner: Me6.Runners.DemoRunner,
+               policy:
+                 Me6.Policy.new(
+                   mailbox_send: [{:eval, :allowed_receiver}],
+                   directory_read: [[:agents, name]],
+                   directory_write: [[:agents, name]],
+                   global_read: [[:mailboxes]],
+                   global_write: []
+                 )
+             )
+
+    assert :ok =
+             Me6.send_message(
+               {:action, name},
+               {:eval, :allowed_receiver},
+               "hello",
+               actor: name
+             )
+
+    assert {:error, {:permission_denied, :mailbox_send, {:eval, :blocked_receiver}}} =
+             Me6.send_message(
+               {:action, name},
+               {:eval, :blocked_receiver},
+               "nope",
+               actor: name
+             )
+
+    assert :ok = Me6.directory_put_as(name, [:agents, name, :state], "running")
+    assert "running" == Me6.directory_get_as(name, [:agents, name, :state])
+
+    assert {:error, {:permission_denied, :directory_write, [:agents, :other, :state]}} =
+             Me6.directory_put_as(name, [:agents, :other, :state], "blocked")
+
+    assert %{eval: _evals, action: _actions} = Me6.global_get_as(name, [:mailboxes])
+
+    assert {:error, {:permission_denied, :global_write, [:workers, :indexer]}} =
+             Me6.global_put_as(name, [:workers, :indexer], self())
+  end
+
   test "fails cleanly when the eval budget is exhausted" do
     name = unique_name()
 

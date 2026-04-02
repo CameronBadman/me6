@@ -5,7 +5,6 @@ defmodule Me6.Tools.Communicate do
 
   @behaviour Me6.Tools.Tool
 
-  alias Me6.Mailboxes
   alias Me6.Tools.Invocation
   alias Me6.Tools.Result
 
@@ -14,10 +13,10 @@ defmodule Me6.Tools.Communicate do
     with {:ok, to} <- fetch_mailbox(input, :to),
          {:ok, body} <- fetch_body(input),
          :ok <-
-           Mailboxes.deliver(
-             from: {:action, context.pair_name},
-             to: to,
-             body: body,
+           Me6.ActionContext.send_message(
+             context,
+             to,
+             body,
              kind: Map.get(input, :kind, :note),
              metadata: Map.get(input, :metadata, %{})
            ) do

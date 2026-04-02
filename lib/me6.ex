@@ -39,13 +39,25 @@ defmodule Me6 do
   @spec send_message({:eval | :action, atom()}, {:eval | :action, atom()}, term(), keyword()) ::
           :ok
   def send_message(from, to, body, opts \\ []) do
-    Mailboxes.deliver(
-      from: from,
-      to: to,
-      body: body,
-      kind: Keyword.get(opts, :kind, :note),
-      metadata: Keyword.get(opts, :metadata, %{})
-    )
+    case Keyword.pop(opts, :actor) do
+      {nil, remaining_opts} ->
+        Mailboxes.deliver(
+          from: from,
+          to: to,
+          body: body,
+          kind: Keyword.get(remaining_opts, :kind, :note),
+          metadata: Keyword.get(remaining_opts, :metadata, %{})
+        )
+
+      {actor_pair, remaining_opts} ->
+        Mailboxes.deliver_as(actor_pair,
+          from: from,
+          to: to,
+          body: body,
+          kind: Keyword.get(remaining_opts, :kind, :note),
+          metadata: Keyword.get(remaining_opts, :metadata, %{})
+        )
+    end
   end
 
   @doc """
@@ -56,12 +68,23 @@ defmodule Me6 do
     Mailboxes.peek(mailbox)
   end
 
+  @spec mailbox_as(atom(), {:eval | :action, atom()}) ::
+          [Me6.Mailboxes.Message.t()] | {:error, term()}
+  def mailbox_as(actor_pair, mailbox) do
+    Mailboxes.peek_as(actor_pair, mailbox)
+  end
+
   @doc """
   Stores a value in the mailbox directory tree at the given path.
   """
   @spec directory_put([term()], term()) :: :ok
   def directory_put(path, value) do
     Mailboxes.put_path(path, value)
+  end
+
+  @spec directory_put_as(atom(), [term()], term()) :: :ok | {:error, term()}
+  def directory_put_as(actor_pair, path, value) do
+    Mailboxes.put_path_as(actor_pair, path, value)
   end
 
   @doc """
@@ -72,12 +95,22 @@ defmodule Me6 do
     Mailboxes.get_path(path, default)
   end
 
+  @spec directory_get_as(atom(), [term()], term()) :: term() | {:error, term()}
+  def directory_get_as(actor_pair, path, default \\ nil) do
+    Mailboxes.get_path_as(actor_pair, path, default)
+  end
+
   @doc """
   Deletes a value from the mailbox directory tree.
   """
   @spec directory_delete([term()]) :: :ok
   def directory_delete(path) do
     Mailboxes.delete_path(path)
+  end
+
+  @spec directory_delete_as(atom(), [term()]) :: :ok | {:error, term()}
+  def directory_delete_as(actor_pair, path) do
+    Mailboxes.delete_path_as(actor_pair, path)
   end
 
   @doc """
@@ -88,12 +121,22 @@ defmodule Me6 do
     Mailboxes.list_path(path)
   end
 
+  @spec directory_list_as(atom(), [term()]) :: [term()] | {:error, term()}
+  def directory_list_as(actor_pair, path \\ []) do
+    Mailboxes.list_path_as(actor_pair, path)
+  end
+
   @doc """
   Returns a subtree from the mailbox directory.
   """
   @spec directory_tree([term()]) :: term()
   def directory_tree(path \\ []) do
     Mailboxes.tree(path)
+  end
+
+  @spec directory_tree_as(atom(), [term()]) :: term() | {:error, term()}
+  def directory_tree_as(actor_pair, path \\ []) do
+    Mailboxes.tree_as(actor_pair, path)
   end
 
   @doc """
@@ -104,12 +147,22 @@ defmodule Me6 do
     Mailboxes.global_put(path, value)
   end
 
+  @spec global_put_as(atom(), [term()], term()) :: :ok | {:error, term()}
+  def global_put_as(actor_pair, path, value) do
+    Mailboxes.global_put_as(actor_pair, path, value)
+  end
+
   @doc """
   Reads a value from the global mailbox directory namespace.
   """
   @spec global_get([term()], term()) :: term()
   def global_get(path, default \\ nil) do
     Mailboxes.global_get(path, default)
+  end
+
+  @spec global_get_as(atom(), [term()], term()) :: term() | {:error, term()}
+  def global_get_as(actor_pair, path, default \\ nil) do
+    Mailboxes.global_get_as(actor_pair, path, default)
   end
 
   @doc """
@@ -120,6 +173,11 @@ defmodule Me6 do
     Mailboxes.global_delete(path)
   end
 
+  @spec global_delete_as(atom(), [term()]) :: :ok | {:error, term()}
+  def global_delete_as(actor_pair, path) do
+    Mailboxes.global_delete_as(actor_pair, path)
+  end
+
   @doc """
   Lists child keys under the global mailbox directory namespace.
   """
@@ -128,12 +186,22 @@ defmodule Me6 do
     Mailboxes.global_list(path)
   end
 
+  @spec global_list_as(atom(), [term()]) :: [term()] | {:error, term()}
+  def global_list_as(actor_pair, path \\ []) do
+    Mailboxes.global_list_as(actor_pair, path)
+  end
+
   @doc """
   Returns a subtree from the global mailbox directory namespace.
   """
   @spec global_tree([term()]) :: term()
   def global_tree(path \\ []) do
     Mailboxes.global_tree(path)
+  end
+
+  @spec global_tree_as(atom(), [term()]) :: term() | {:error, term()}
+  def global_tree_as(actor_pair, path \\ []) do
+    Mailboxes.global_tree_as(actor_pair, path)
   end
 
   @doc """

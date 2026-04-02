@@ -9,7 +9,7 @@ defmodule Me6.ActionAgent do
   alias Me6.Mailboxes.Message
   alias Me6.Tools
 
-  defstruct [:pair_name, :runner, :runner_state, :memory, :tools, pending_messages: []]
+  defstruct [:pair_name, :runner, :runner_state, :memory, :tools, :policy, pending_messages: []]
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -38,6 +38,7 @@ defmodule Me6.ActionAgent do
        runner_state: runner_state,
        memory: memory,
        tools: Tools.new(tools),
+       policy: Keyword.get(opts, :policy, Me6.Policy.allow_all()),
        pending_messages: []
      }}
   end
@@ -48,7 +49,8 @@ defmodule Me6.ActionAgent do
       pair_name: state.pair_name,
       memory: state.memory,
       tools: state.tools,
-      delegation_budget: brief.delegation_budget
+      delegation_budget: brief.delegation_budget,
+      policy: state.policy
     }
 
     {:ok, result, runner_state} = state.runner.run_turn(brief, context, state.runner_state)

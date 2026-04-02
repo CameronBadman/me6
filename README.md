@@ -30,6 +30,8 @@ Core runtime modules:
 - `Me6.Mailboxes` provides registry-backed mailboxes for agent communication.
 - `Me6.Mailboxes.Message` is the structured mailbox envelope.
 - `Me6.Tools.Communicate` lets agents send mailbox messages through the native tool layer.
+- `Me6.Policy` defines pair capabilities for tools, mailboxes, and directory paths.
+- `Me6.Policy.Registry` stores per-pair policies.
 - `Me6.Memory` defines the memory backend contract.
 - `Me6.Memory.ETS` is the default in-memory backend.
 
@@ -74,6 +76,24 @@ Messages are stored in a central mailbox registry and can be delivered either th
 - other message kinds become correction notes
 
 The mailbox registry also exposes a recursive directory tree for named discovery. Agents can store nested values, including pids, and explore them by path. The framework reserves a shared `:global` root for globally visible entries such as registered mailbox owners.
+
+## Permissions
+
+Pairs may be started with an explicit `Me6.Policy`. Policies are enforced at the runtime boundaries:
+
+- tool invocation
+- mailbox sends
+- actor-scoped mailbox reads
+- actor-scoped directory reads and writes
+- actor-scoped global namespace reads and writes
+
+The current model is capability-based and path-prefix based. If no policy is provided for a pair, the runtime defaults to allow-all for compatibility. Restricted pairs can narrow:
+
+- allowed tool names
+- allowed mailbox recipients
+- allowed mailbox readers
+- readable and writable directory prefixes
+- readable and writable `:global` prefixes
 
 ## Example
 
