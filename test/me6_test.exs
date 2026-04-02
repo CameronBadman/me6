@@ -210,6 +210,52 @@ defmodule Me6Test do
              )
   end
 
+  test "routing helpers resolve paired, parent, child, and reply paths" do
+    parent = unique_name()
+    child = unique_name()
+
+    assert {:ok, _pid} =
+             Me6.start_pair(
+               name: parent,
+               runner: Me6.Runners.DemoRunner,
+               policy:
+                 Me6.Policy.new(
+                   spawn_child_pair: true,
+                   mailbox_send: [{:eval, parent}, {:eval, child}, {:action, child}]
+                 )
+             )
+
+    assert {:ok, _pid} =
+             Me6.spawn_child_pair(parent,
+               name: child,
+               runner: Me6.Runners.DemoRunner
+             )
+
+    assert Me6.Comms.paired_eval(parent) == {:eval, parent}
+    assert Me6.Comms.paired_action(parent) == {:action, parent}
+    assert Me6.Comms.parent(child) == parent
+    assert Me6.Comms.children(parent) == [child]
+    assert Me6.Comms.child(parent, child) == child
+
+    assert :ok = Me6.Comms.to_paired_eval(parent, "self note", from_component: :action)
+
+    assert [
+             %Me6.Mailboxes.Message{body: "self note"}
+           ] = Me6.mailbox({:eval, parent})
+
+    assert :ok = Me6.Comms.to_child_eval(parent, child, "child task")
+    assert [%Me6.Mailboxes.Message{body: "child task"}] = Me6.mailbox({:eval, child})
+
+    assert :ok = Me6.Comms.to_parent_eval(child, "need review")
+
+    inbound =
+      Me6.mailbox({:eval, parent})
+      |> Enum.find(&(&1.body == "need review"))
+
+    assert :ok = Me6.Comms.reply(parent, inbound, "acknowledged")
+    assert [%Me6.Mailboxes.Message{body: "acknowledged"}] = Me6.mailbox({:action, child})
+  end
+
   test "policy denies tools that are not allowed" do
     restricted_context = %Me6.ActionContext{
       pair_name: :restricted_pair,

@@ -33,6 +33,7 @@ Core runtime modules:
 - `Me6.Policy` defines pair capabilities for tools, mailboxes, and directory paths.
 - `Me6.Policy.Registry` stores per-pair policies.
 - `Me6.PairManager` creates top-level and child pairs and records lineage.
+- `Me6.Comms` provides routing helpers for paired, parent, child, and reply messaging.
 - `Me6.Memory` defines the memory backend contract.
 - `Me6.Memory.ETS` is the default in-memory backend.
 
@@ -109,6 +110,16 @@ Child pairs can be spawned on behalf of a parent pair with `Me6.spawn_child_pair
 - starts the new pair under the pair supervisor
 - records parent/child lineage under `[:global, :pairs, ...]`
 - keeps child pairs discoverable in the global namespace
+
+## Routing
+
+`Me6.Comms` builds on the global pair tree and mailbox layer so callers do not need to construct mailbox addresses manually. The helper layer currently supports:
+
+- paired eval/action routing
+- parent eval/action routing
+- child eval/action routing
+- reply routing from an inbound mailbox message
+- parent and child lookup helpers
 
 ## Example
 
